@@ -141,6 +141,16 @@ public class AnswerService {
         return "Answer approved";
     }
 
+    // Reject answer
+    public String rejectAnswer(Integer answerId) {
+        Answer answer = answerRepository.findById(answerId)
+                .orElseThrow(() ->
+                    new ResourceNotFoundException("Answer not found"));
+        answer.setIsApproved(false);
+        answerRepository.save(answer);
+        return "Answer rejected";
+    }
+
     // Delete answer
     public String deleteAnswer(Integer answerId) {
         Answer answer = answerRepository.findById(answerId)

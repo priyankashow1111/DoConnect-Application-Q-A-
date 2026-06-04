@@ -12,9 +12,9 @@
     <a href="index.html" class="logo">Do<span>Connect</span></a>
     <div class="nav-links">
         <a href="index.html">Home</a>
-        <a href="chat.html" id="chatNavLink">💬 Chat</a>
+        <a href="chat.html">💬 Chat</a>
         <a href="ask-question.html" class="btn-ask">+ Ask Question</a>
-        <span class="nav-username">👤 <strong id="navUser"></strong></span>
+        <a href="profile.html">👤 <strong id="navUser"></strong></a>
         <a href="#" onclick="logout()">Logout</a>
     </div>
 </nav>
@@ -32,7 +32,6 @@
         </a>
     </div>
 
-    <!-- Status filter tabs -->
     <div class="my-q-tabs">
         <button class="my-q-tab active" onclick="filterByStatus('all', this)">All</button>
         <button class="my-q-tab" onclick="filterByStatus('pending', this)">⏳ Pending</button>
@@ -44,6 +43,31 @@
         <div class="loading">Loading your questions...</div>
     </div>
 
+</div>
+
+<!-- Edit Question Modal -->
+<div class="modal-overlay" id="editQOverlay">
+    <div class="modal-box" style="text-align:left; max-width:500px;">
+        <h3 style="margin-bottom:15px; color:#2c3e50;">✏️ Edit Question</h3>
+        <input type="hidden" id="editQId">
+        <div class="form-group">
+            <label>Title</label>
+            <input type="text" id="editQTitle">
+        </div>
+        <div class="form-group">
+            <label>Description</label>
+            <textarea id="editQDesc" style="min-height:100px;"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Topic</label>
+            <input type="text" id="editQTopic">
+        </div>
+        <div class="modal-actions" style="justify-content:flex-start;">
+            <button class="btn btn-primary" onclick="saveQuestionEdit()">💾 Save</button>
+            <button class="btn" style="background:#95a5a6; color:white;"
+                onclick="document.getElementById('editQOverlay').classList.remove('active')">Cancel</button>
+        </div>
+    </div>
 </div>
 
 <script src="js/api.js"></script>
@@ -59,7 +83,7 @@
         try {
             myQuestions = await getMyQuestions();
             document.getElementById('myQuestionCount').textContent =
-                `(${myQuestions.length})`;
+                '(' + myQuestions.length + ')';
             renderQuestions(myQuestions);
         } catch (err) {
             document.getElementById('myQuestionsList').innerHTML =
@@ -68,11 +92,9 @@
     }
 
     function filterByStatus(status, btn) {
-        document.querySelectorAll('.my-q-tab')
-            .forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.my-q-tab').forEach(t => t.classList.remove('active'));
         btn.classList.add('active');
-
-        if (status === 'all') return renderQuestions(myQuestions);
+        if (status === 'all')      return renderQuestions(myQuestions);
         if (status === 'pending')  return renderQuestions(myQuestions.filter(q => q.status === 'PENDING'));
         if (status === 'approved') return renderQuestions(myQuestions.filter(q => q.isApproved));
         if (status === 'rejected') return renderQuestions(myQuestions.filter(q => q.status === 'REJECTED'));
@@ -82,50 +104,92 @@
         const container = document.getElementById('myQuestionsList');
 
         if (questions.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <h3>No questions here</h3>
-                    <p>You haven't asked any questions yet.</p>
-                    <br>
-                    <a href="ask-question.html" class="btn btn-primary"
-                        style="width:auto; display:inline-block;">
-                        Ask Your First Question
-                    </a>
-                </div>`;
+            container.innerHTML =
+                '<div class="empty-state"><h3>No questions here</h3>' +
+                '<p>You haven\'t asked any questions yet.</p><br>' +
+                '<a href="ask-question.html" class="btn btn-primary" style="width:auto; display:inline-block;">Ask Your First Question</a></div>';
             return;
         }
 
-        container.innerHTML = questions.map(q => {
-            const isApproved = q.isApproved;
-            const isRejected = q.status === 'REJECTED';
-            const isPending  = !isApproved && !isRejected;
+        container.innerHTML = questions.map(function(q) {
+            var isApproved = q.isApproved;
+            var isRejected = q.status === 'REJECTED';
+            var isPending  = !isApproved && !isRejected;
 
-            const approvalBadge = isApproved
-                ? `<span class="approval-badge approved">✅ Approved</span>`
+            var approvalBadge = isApproved
+                ? '<span class="approval-badge approved">✅ Approved</span>'
                 : isRejected
-                ? `<span class="approval-badge rejected">❌ Rejected</span>`
-                : `<span class="approval-badge pending">⏳ Pending Approval</span>`;
+                ? '<span class="approval-badge rejected">❌ Rejected</span>'
+                : '<span class="approval-badge pending">⏳ Pending Approval</span>';
 
-            const titleEl = isApproved
-                ? `<a href="question-detail.html?id=${q.questionId}">${q.title}</a>`
-                : `<span style="color:#2c3e50;">${q.title}</span>`;
+            var titleEl = isApproved
+                ? '<a href="question-detail.html?id=' + q.questionId + '">' + q.title + '</a>'
+                : '<span style="color:#2c3e50;">' + q.title + '</span>';
 
-            return `
-                <div class="card question-card ${isPending ? 'card-pending' : isRejected ? 'card-rejected' : ''}">
-                    ${isPending ? `<div class="my-q-notice">👁️ Only visible to you until approved</div>` : ''}
-                    ${isRejected ? `<div class="my-q-notice my-q-notice-rejected">❌ This question was rejected by admin</div>` : ''}
-                    <div class="question-card-body">
-                        <h3>${titleEl}</h3>
-                        <p class="question-desc">${q.description.substring(0, 150)}...</p>
-                    </div>
-                    <div class="question-meta">
-                        <span class="topic-badge">${q.topic || 'General'}</span>
-                        <span class="status-badge status-${q.status.toLowerCase()}">${q.status}</span>
-                        ${approvalBadge}
-                        <span class="meta-date">🕐 ${formatDate(q.createdAt)}</span>
-                    </div>
-                </div>`;
+            var safeTitle = q.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            var safeDesc  = q.description.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            var safeTopic = (q.topic || '').replace(/'/g, "\\'");
+
+            var editBtn = !isApproved
+                ? '<button class="btn btn-info btn-sm" style="margin-top:8px;" ' +
+                  'onclick="openEditModal(' + q.questionId + ', \'' + safeTitle + '\', \'' + safeDesc + '\', \'' + safeTopic + '\')">✏️ Edit</button>'
+                : '';
+
+            return '<div class="card question-card ' + (isPending ? 'card-pending' : isRejected ? 'card-rejected' : '') + '">' +
+                (isPending ? '<div class="my-q-notice">👁️ Only visible to you until approved</div>' : '') +
+                (isRejected ? '<div class="my-q-notice my-q-notice-rejected">❌ This question was rejected by admin</div>' : '') +
+                '<div class="question-card-body">' +
+                '<h3>' + titleEl + '</h3>' +
+                '<p class="question-desc">' + q.description.substring(0, 150) + '...</p>' +
+                editBtn +
+                '</div>' +
+                '<div class="question-meta">' +
+                '<span class="topic-badge">' + (q.topic || 'General') + '</span>' +
+                '<span class="status-badge status-' + q.status.toLowerCase() + '">' + q.status + '</span>' +
+                approvalBadge +
+                '<span class="meta-date">🕐 ' + formatDate(q.createdAt) + '</span>' +
+                '</div></div>';
         }).join('');
+    }
+
+    function openEditModal(id, title, description, topic) {
+        document.getElementById('editQId').value = id;
+        document.getElementById('editQTitle').value = title;
+        document.getElementById('editQDesc').value = description;
+        document.getElementById('editQTopic').value = topic;
+        document.getElementById('editQOverlay').classList.add('active');
+    }
+
+    async function saveQuestionEdit() {
+        var id          = document.getElementById('editQId').value;
+        var title       = document.getElementById('editQTitle').value.trim();
+        var description = document.getElementById('editQDesc').value.trim();
+        var topic       = document.getElementById('editQTopic').value.trim();
+
+        if (!title || !description) {
+            showToast('Title and description are required');
+            return;
+        }
+        try {
+            var res = await fetch(BASE_URL + '/api/questions/update/' + id, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                body: JSON.stringify({ title: title, description: description, topic: topic })
+            });
+            var data = await res.json();
+            if (data.questionId) {
+                document.getElementById('editQOverlay').classList.remove('active');
+                showToast('✅ Question updated! Pending re-approval.');
+                loadMyQuestions();
+            } else {
+                showToast(data.error || 'Update failed');
+            }
+        } catch (err) {
+            showToast('Server error');
+        }
     }
 
     function formatDate(dateStr) {
@@ -135,6 +199,14 @@
         });
     }
 
+    function showToast(msg) {
+        var t = document.querySelector('.toast');
+        if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(function() { t.classList.remove('show'); }, 3000);
+    }
+
     function logout() {
         localStorage.clear();
         window.location.href = 'login.html';
@@ -142,5 +214,10 @@
 
     loadMyQuestions();
 </script>
+
+<footer style="text-align:center; padding:20px; color:#999; font-size:13px; margin-top:40px; border-top:1px solid #eee;">
+    © 2024 DoConnect — Q&A Community Platform
+</footer>
+
 </body>
 </html>

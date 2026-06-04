@@ -310,6 +310,18 @@ const adminApproveAnswer = async (answerId) => {
     return res.json();
 };
 
+const adminRejectAnswer = async (answerId) => {
+    const res = await fetch(
+        `${BASE_URL}/api/admin/answers/reject/${answerId}`,
+        {
+            method: 'PUT',
+            headers: adminAuthHeaders(),
+            body: JSON.stringify({ remarks: 'Rejected' })
+        }
+    );
+    return res.json();
+};
+
 const adminDeactivateUser = async (userId) => {
     const res = await fetch(
         `${BASE_URL}/api/admin/users/deactivate/${userId}`,

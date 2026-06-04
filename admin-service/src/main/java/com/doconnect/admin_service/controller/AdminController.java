@@ -41,4 +41,19 @@ public class AdminController {
             @PathVariable Integer adminId) {
         return ResponseEntity.ok(adminService.getAdminById(adminId));
     }
+
+    // Update admin
+    @PutMapping("/update/{adminId}")
+    public ResponseEntity<AdminDTO> updateAdmin(
+            @PathVariable Integer adminId,
+            @RequestBody AdminRegisterRequest request) {
+        return ResponseEntity.ok(adminService.updateAdmin(adminId, request));
+    }
+
+    // Delete admin
+    @DeleteMapping("/delete/{adminId}")
+    public ResponseEntity<String> deleteAdmin(
+            @PathVariable Integer adminId) {
+        return ResponseEntity.ok(adminService.deleteAdmin(adminId));
+    }
 }

@@ -74,6 +74,13 @@ public class AnswerController {
         return ResponseEntity.ok(answerService.approveAnswer(answerId));
     }
 
+    // Reject answer (admin)
+    @PutMapping("/reject/{answerId}")
+    public ResponseEntity<String> rejectAnswer(
+            @PathVariable Integer answerId) {
+        return ResponseEntity.ok(answerService.rejectAnswer(answerId));
+    }
+
     // Delete answer
     @DeleteMapping("/delete/{answerId}")
     public ResponseEntity<String> deleteAnswer(

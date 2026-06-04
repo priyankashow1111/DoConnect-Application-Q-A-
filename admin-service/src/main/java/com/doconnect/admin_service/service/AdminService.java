@@ -99,6 +99,31 @@ public class AdminService {
         return mapToDTO(admin);
     }
 
+    // Update admin
+    public AdminDTO updateAdmin(Integer adminId, AdminRegisterRequest request) {
+        Admin admin = adminRepository.findById(adminId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                    "Admin not found with id: " + adminId));
+
+        admin.setFullName(request.getFullName());
+        admin.setEmail(request.getEmail());
+
+        if (request.getPassword() != null && !request.getPassword().isEmpty())
+            admin.setPassword(passwordEncoder.encode(request.getPassword()));
+
+        adminRepository.save(admin);
+        return mapToDTO(admin);
+    }
+
+    // Delete admin
+    public String deleteAdmin(Integer adminId) {
+        Admin admin = adminRepository.findById(adminId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                    "Admin not found with id: " + adminId));
+        adminRepository.delete(admin);
+        return "Admin deleted successfully";
+    }
+
     private AdminDTO mapToDTO(Admin admin) {
         return AdminDTO.builder()
                 .adminId(admin.getAdminId())

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - DoConnect</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .auth-wrapper {
+            min-height: calc(100vh - 57px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #f4f6f9 0%, #e8ecf1 100%);
+            padding: 30px 20px;
+        }
+        .auth-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+            width: 100%;
+            max-width: 460px;
+            overflow: hidden;
+        }
+        .auth-header {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            padding: 28px 35px 0;
+        }
+        .auth-brand {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .auth-brand h1 {
+            color: white;
+            font-size: 26px;
+            font-weight: 700;
+        }
+        .auth-brand h1 span { color: #e74c3c; }
+        .auth-brand p {
+            color: rgba(255,255,255,0.6);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        .tab-group {
+            display: flex;
+            gap: 4px;
+        }
+        .tab-group .role-tabs {
+            display: flex;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px 10px 0 0;
+            padding: 4px 4px 0;
+            gap: 2px;
+            flex: 1;
+        }
+        .role-tab {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            color: rgba(255,255,255,0.6);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .role-tab.active {
+            background: white;
+            color: #2c3e50;
+        }
+        .auth-body {
+            padding: 28px 35px;
+        }
+        .action-tabs {
+            display: flex;
+            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 24px;
+        }
+        .action-tab {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: none;
+            font-size: 14px;
+            font-weight: 600;
+            color: #999;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+        .action-tab.active {
+            color: #e74c3c;
+            border-bottom-color: #e74c3c;
+        }
+        .form-panel { display: none; }
+        .form-panel.active { display: block; }
+        .auth-body .form-group { margin-bottom: 16px; }
+        .auth-body .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 6px;
+        }
+        .auth-body .form-group input {
+            width: 100%;
+            padding: 11px 14px;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border 0.2s;
+            background: #fafafa;
+        }
+        .auth-body .form-group input:focus {
+            border-color: #e74c3c;
+            background: white;
+        }
+        .auth-submit {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 4px;
+            transition: all 0.2s;
+        }
+        .btn-user { background: #e74c3c; color: white; }
+        .btn-user:hover { background: #c0392b; }
+        .btn-admin { background: #2c3e50; color: white; }
+        .btn-admin:hover { background: #1a252f; }
+        .auth-footer {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 13px;
+            color: #888;
+        }
+        .auth-footer a { color: #e74c3c; font-weight: 600; text-decoration: none; }
+        .auth-footer a:hover { text-decoration: underline; }
+        #alert { margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <a href="index.html" class="logo">Do<span>Connect</span></a>
+    <div class="nav-links">
+        <a href="login.html">Login</a>
+        <a href="login.html#register">Register</a>
+    </div>
+</nav>
+
+<div class="auth-wrapper">
+    <div class="auth-card">
+
+        <div class="auth-header">
+            <div class="auth-brand">
+                <h1>Do<span>Connect</span></h1>
+                <p>Your Q&A Community Platform</p>
+            </div>
+            <div class="tab-group">
+                <div class="role-tabs">
+                    <button class="role-tab active" id="roleUser" onclick="switchRole('user')">
+                        👤 User
+                    </button>
+                    <button class="role-tab" id="roleAdmin" onclick="switchRole('admin')">
+                        🔑 Admin
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="auth-body">
+            <div id="alert"></div>
+
+            <!-- Action tabs -->
+            <div class="action-tabs">
+                <button class="action-tab active" id="actionLogin" onclick="switchAction('login')">Login</button>
+                <button class="action-tab" id="actionRegister" onclick="switchAction('register')">Register</button>
+            </div>
+
+            <!-- USER LOGIN -->
+            <div class="form-panel active" id="panel-user-login">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="uLoginUsername" placeholder="Enter your username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="uLoginPassword" placeholder="Enter your password">
+                </div>
+                <button class="auth-submit btn-user" onclick="handleLogin()">Login</button>
+            </div>
+
+            <!-- USER REGISTER -->
+            <div class="form-panel" id="panel-user-register">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="uRegFullName" placeholder="Enter your full name">
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="uRegUsername" placeholder="Choose a username">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="uRegEmail" placeholder="Enter your email">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="uRegPassword" placeholder="Min 6 characters">
+                </div>
+                <button class="auth-submit btn-user" onclick="handleRegister()">Create Account</button>
+            </div>
+
+            <!-- ADMIN LOGIN -->
+            <div class="form-panel" id="panel-admin-login">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="aLoginUsername" placeholder="Enter admin username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="aLoginPassword" placeholder="Enter password">
+                </div>
+                <button class="auth-submit btn-admin" onclick="handleAdminLogin()">Login as Admin</button>
+            </div>
+
+            <!-- ADMIN REGISTER -->
+            <div class="form-panel" id="panel-admin-register">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="aRegUsername" placeholder="Choose a username">
+                </div>
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="aRegFullName" placeholder="Enter full name">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="aRegEmail" placeholder="Enter email">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="aRegPassword" placeholder="Create password">
+                </div>
+                <button class="auth-submit btn-admin" onclick="handleAdminRegister()">Register Admin</button>
+            </div>
+
+            <div class="auth-footer" id="authFooter">
+                Don't have an account? <a href="#" onclick="switchAction('register'); return false;">Register here</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    if (localStorage.getItem('token')) window.location.href = 'index.html';
+
+    let currentRole = 'user';
+    let currentAction = 'login';
+
+    function showPanel() {
+        document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById(`panel-${currentRole}-${currentAction}`).classList.add('active');
+
+        // action tabs
+        document.getElementById('actionLogin').classList.toggle('active', currentAction === 'login');
+        document.getElementById('actionRegister').classList.toggle('active', currentAction === 'register');
+
+        // role tabs
+        document.getElementById('roleUser').classList.toggle('active', currentRole === 'user');
+        document.getElementById('roleAdmin').classList.toggle('active', currentRole === 'admin');
+
+        // footer
+        const footer = document.getElementById('authFooter');
+        if (currentAction === 'login') {
+            footer.innerHTML = `Don't have an account? <a href="#" onclick="switchAction('register'); return false;">Register here</a>`;
+        } else {
+            footer.innerHTML = `Already have an account? <a href="#" onclick="switchAction('login'); return false;">Login here</a>`;
+        }
+        document.getElementById('alert').innerHTML = '';
+    }
+
+    function switchRole(role) { currentRole = role; showPanel(); }
+    function switchAction(action) { currentAction = action; showPanel(); }
+
+    // Hash support
+    if (window.location.hash === '#register') switchAction('register');
+    if (window.location.hash === '#admin') switchRole('admin');
+
+    async function handleLogin() {
+        const username = document.getElementById('uLoginUsername').value;
+        const password = document.getElementById('uLoginPassword').value;
+        if (!username || !password) { showAlert('Please enter username and password', 'error'); return; }
+        try {
+            const data = await loginUser({ username, password });
+            if (data.token) {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('userId', data.userId);
+                localStorage.setItem('username', data.username);
+                showAlert('Login successful!', 'success');
+                setTimeout(() => window.location.href = 'index.html', 1000);
+            } else {
+                showAlert(data.error || 'Login failed', 'error');
+            }
+        } catch (err) { showAlert('Server error. Please try again.', 'error'); }
+    }
+
+    async function handleRegister() {
+        const fullName = document.getElementById('uRegFullName').value;
+        const username = document.getElementById('uRegUsername').value;
+        const email = document.getElementById('uRegEmail').value;
+        const password = document.getElementById('uRegPassword').value;
+        if (!username || !email || !password) { showAlert('Please fill all required fields', 'error'); return; }
+        try {
+            const data = await registerUser({ fullName, username, email, password });
+            if (data.token) {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('userId', data.userId);
+                localStorage.setItem('username', data.username);
+                showAlert('Registration successful! Redirecting...', 'success');
+                setTimeout(() => window.location.href = 'index.html', 1500);
+            } else if (data.message) {
+                showAlert(data.message + ' Please login.', 'success');
+                setTimeout(() => switchAction('login'), 1500);
+            } else {
+                showAlert(data.error || 'Registration failed', 'error');
+            }
+        } catch (err) { showAlert('Server error. Please try again.', 'error'); }
+    }
+
+    async function handleAdminLogin() {
+        const username = document.getElementById('aLoginUsername').value;
+        const password = document.getElementById('aLoginPassword').value;
+        if (!username || !password) { showAlert('Please enter credentials', 'error'); return; }
+        try {
+            const data = await loginAdmin({ username, password });
+            if (data.token) {
+                localStorage.setItem('adminToken', data.token);
+                localStorage.setItem('adminId', data.adminId);
+                localStorage.setItem('adminUsername', data.username);
+                showAlert('Login successful!', 'success');
+                setTimeout(() => window.location.href = 'admin-dashboard.html', 1000);
+            } else {
+                showAlert(data.error || 'Login failed', 'error');
+            }
+        } catch (err) { showAlert('Server error. Please try again.', 'error'); }
+    }
+
+    async function handleAdminRegister() {
+        const username = document.getElementById('aRegUsername').value;
+        const fullName = document.getElementById('aRegFullName').value;
+        const email = document.getElementById('aRegEmail').value;
+        const password = document.getElementById('aRegPassword').value;
+        if (!username || !fullName || !email || !password) { showAlert('Please fill all fields', 'error'); return; }
+        try {
+            const data = await registerAdmin({ username, fullName, email, password });
+            if (data.token) {
+                localStorage.setItem('adminToken', data.token);
+                localStorage.setItem('adminId', data.adminId);
+                localStorage.setItem('adminUsername', data.username);
+                showAlert('Registered successfully! Redirecting...', 'success');
+                setTimeout(() => window.location.href = 'admin-dashboard.html', 1000);
+            } else {
+                showAlert(data.message || data.error || 'Registration failed', 'error');
+            }
+        } catch (err) { showAlert('Server error. Please try again.', 'error'); }
+    }
+
+    document.addEventListener('keypress', (e) => {
+        if (e.key !== 'Enter') return;
+        if (currentRole === 'user' && currentAction === 'login') handleLogin();
+        else if (currentRole === 'user' && currentAction === 'register') handleRegister();
+        else if (currentRole === 'admin' && currentAction === 'login') handleAdminLogin();
+        else handleAdminRegister();
+    });
+
+    function showAlert(msg, type) {
+        document.getElementById('alert').innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+    }
+</script>
+</body>
+</html>

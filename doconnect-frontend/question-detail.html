@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Question - DoConnect</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <a href="index.html" class="logo">Do<span>Connect</span></a>
+    <div class="nav-links">
+        <a href="index.html">← All Questions</a>
+        <a href="chat.html" id="chatNavLink">💬 Chat</a>
+        <span class="nav-username">👤 <strong id="navUser"></strong></span>
+    </div>
+</nav>
+
+<div class="container">
+
+    <!-- Question -->
+    <div id="questionSection">
+        <div class="loading">Loading question...</div>
+    </div>
+
+    <!-- Post Answer -->
+    <div id="answerForm" class="card" style="display:none;">
+        <h3 style="margin-bottom:15px;">✏️ Your Answer</h3>
+        <div class="form-group">
+            <textarea id="answerText"
+                placeholder="Write your answer here..."
+                style="min-height:140px;"></textarea>
+        </div>
+        <button class="btn btn-success" onclick="submitAnswer()">
+            Post Answer
+        </button>
+    </div>
+
+    <!-- Answers -->
+    <h3 style="margin:25px 0 15px; color:#2c3e50;" id="answersTitle"></h3>
+    <div id="answersList"></div>
+
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/confirm-modal.js"></script>
+<script>
+    if (!localStorage.getItem('token')) {
+        window.location.href = 'login.html';
+    }
+    document.getElementById('navUser').textContent = localStorage.getItem('username');
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const questionId = urlParams.get('id');
+    const currentUser = localStorage.getItem('username');
+    const currentUserId = parseInt(localStorage.getItem('userId'));
+
+    if (!questionId) window.location.href = 'index.html';
+
+    async function loadPage() {
+        await loadQuestion();
+        await loadAnswers();
+    }
+
+    async function loadQuestion() {
+        try {
+            const q = await getQuestionById(questionId);
+            const isOpen = q.status === 'OPEN';
+
+            document.getElementById('questionSection').innerHTML = `
+                <div class="card question-card">
+                    <div style="display:flex; justify-content:space-between;
+                                flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <span class="topic-badge">${q.topic || 'General'}</span>
+                            <span class="status-badge
+                                status-${q.status.toLowerCase()}"
+                                style="margin-left:8px;">
+                                ${q.status}
+                            </span>
+                        </div>
+                    </div>
+                    <h2 style="margin:15px 0 10px; color:#2c3e50;">
+                        ${q.title}
+                    </h2>
+                    <p style="color:#555; line-height:1.6;">${q.description}</p>
+                    <div class="question-meta" style="margin-top:15px;">
+                        <span>👤 Asked by <strong>${q.askedBy}</strong></span>
+                        <span>🕐 ${formatDate(q.createdAt)}</span>
+                    </div>
+                </div>`;
+
+            // Show answer form only if OPEN
+            if (isOpen) {
+                document.getElementById('answerForm').style.display = 'block';
+            } else {
+                document.getElementById('answerForm').innerHTML = `
+                    <div class="alert alert-error">
+                        🔒 This question is ${q.status} — no more answers
+                    </div>`;
+                document.getElementById('answerForm').style.display = 'block';
+            }
+        } catch (err) {
+            document.getElementById('questionSection').innerHTML =
+                '<div class="alert alert-error">Failed to load question</div>';
+        }
+    }
+
+    async function loadAnswers() {
+        try {
+            const answers = await getAnswers(questionId);
+            const pending = await getMyPendingAnswer(questionId);
+            const hasPending = pending && pending.answerId && !pending.isApproved;
+
+            const title = document.getElementById('answersTitle');
+            title.textContent = `💬 ${answers.length} Answer(s)`;
+
+            const container = document.getElementById('answersList');
+            container.innerHTML = '';
+
+            if (hasPending) {
+                document.getElementById('answerForm').innerHTML = `
+                    <div class="submission-banner">
+                        <div class="submission-banner-icon">⏳</div>
+                        <div>
+                            <strong>Answer submitted — Pending Admin Approval</strong>
+                            <p>Your answer has been received. It will appear publicly once an admin reviews and approves it.</p>
+                        </div>
+                    </div>`;
+                document.getElementById('answerForm').style.display = 'block';
+                showPendingAnswer(pending.answerText);
+            }
+
+            if (answers.length === 0 && !hasPending) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>No answers yet. Be the first to answer!</p>
+                    </div>`;
+                return;
+            }
+
+            for (const a of answers) {
+                const liked = await hasUserLiked(a.answerId);
+                const comments = await getComments(a.answerId);
+
+                const div = document.createElement('div');
+                div.className = 'card answer-card';
+                div.id = `answer-${a.answerId}`;
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between;">
+                        <strong style="color:#27ae60;">
+                            👤 ${a.answeredBy}
+                        </strong>
+                        <span style="font-size:12px; color:#999;">
+                            ${formatDate(a.createdAt)}
+                        </span>
+                    </div>
+                    <p style="margin:10px 0; line-height:1.6; color:#444;">
+                        ${a.answerText}
+                    </p>
+                    <div class="answer-actions">
+                        <button class="like-btn ${liked ? 'liked' : ''}"
+                            id="likeBtn-${a.answerId}"
+                            onclick="handleLike(${a.answerId})">
+                            ❤️ Like
+                        </button>
+                        <span class="like-count"
+                            id="likeCount-${a.answerId}">
+                            ${a.likeCount} likes
+                        </span>
+                    </div>
+
+                    <!-- Comments -->
+                    <div class="comment-section">
+                        <div id="comments-${a.answerId}">
+                            ${renderComments(comments)}
+                        </div>
+                        <div class="comment-input-row">
+                            <input type="text"
+                                id="commentInput-${a.answerId}"
+                                placeholder="Add a comment..."
+                                onkeypress="if(event.key==='Enter')
+                                    addCommentHandler(${a.answerId})">
+                            <button class="btn btn-info btn-sm"
+                                onclick="addCommentHandler(${a.answerId})">
+                                Comment
+                            </button>
+                        </div>
+                    </div>`;
+
+                container.appendChild(div);
+            }
+        } catch (err) {
+            document.getElementById('answersList').innerHTML =
+                '<div class="alert alert-error">Failed to load answers</div>';
+        }
+    }
+
+    function renderComments(comments) {
+        if (!comments || comments.length === 0) return '';
+        return comments.map(c => `
+            <div class="comment-item">
+                <strong>${c.commentedBy}:</strong> ${c.commentText}
+            </div>`).join('');
+    }
+
+    async function submitAnswer() {
+        const text = document.getElementById('answerText').value.trim();
+        if (!text) {
+            showToast('Please write an answer');
+            return;
+        }
+        try {
+            const data = await postAnswer(questionId, { answerText: text });
+            if (data.answerId) {
+                document.getElementById('answerText').value = '';
+                document.getElementById('answerForm').innerHTML = `
+                    <div class="submission-banner">
+                        <div class="submission-banner-icon">⏳</div>
+                        <div>
+                            <strong>Answer submitted — Pending Admin Approval</strong>
+                            <p>Your answer has been received. It will appear publicly once an admin reviews and approves it.</p>
+                        </div>
+                    </div>`;
+                showPendingAnswer(text);
+            } else {
+                showToast(data.error || 'Failed to submit');
+            }
+        } catch (err) {
+            showToast('Error: ' + err.message);
+        }
+    }
+
+    function showPendingAnswer(text) {
+        const container = document.getElementById('answersList');
+        const pending = document.createElement('div');
+        pending.className = 'card answer-card answer-pending';
+        pending.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong style="color:#27ae60;">👤 ${currentUser}</strong>
+                <span class="pending-badge">⏳ Pending Approval</span>
+            </div>
+            <p style="margin:10px 0; line-height:1.6; color:#444;">${text}</p>
+            <div style="font-size:12px; color:#aaa; margin-top:6px;">Just now · Visible to you only until approved</div>`;
+        // Prepend so it shows at top of answers list
+        container.prepend(pending);
+        // Update count
+        const title = document.getElementById('answersTitle');
+        const current = parseInt(title.textContent.match(/\d+/) || [0]) + 1;
+        title.textContent = `💬 ${current} Answer(s)`;
+    }
+
+    async function handleLike(answerId) {
+        try {
+            const result = await toggleLike(answerId);
+            const btn = document.getElementById(`likeBtn-${answerId}`);
+            const countEl = document.getElementById(`likeCount-${answerId}`);
+            const count = await getLikeCount(answerId);
+            countEl.textContent = `${count} likes`;
+            btn.classList.toggle('liked', result === 'Answer liked');
+        } catch (err) {
+            showToast('Failed to like');
+        }
+    }
+
+    async function addCommentHandler(answerId) {
+        const input = document.getElementById(`commentInput-${answerId}`);
+        const text = input.value.trim();
+        if (!text) return;
+
+        try {
+            const data = await addComment(answerId, { commentText: text });
+            if (data.commentId) {
+                input.value = '';
+                const commentsDiv =
+                    document.getElementById(`comments-${answerId}`);
+                commentsDiv.innerHTML += `
+                    <div class="comment-item">
+                        <strong>${data.commentedBy}:</strong>
+                        ${data.commentText}
+                    </div>`;
+            }
+        } catch (err) {
+            showToast('Failed to add comment');
+        }
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '';
+        return new Date(dateStr).toLocaleDateString('en-IN', {
+            day: 'numeric', month: 'short', year: 'numeric'
+        });
+    }
+
+    loadPage();
+</script>
+</body>
+</html>

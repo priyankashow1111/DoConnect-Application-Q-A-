@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Questions - DoConnect</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <a href="index.html" class="logo">Do<span>Connect</span></a>
+    <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="chat.html" id="chatNavLink">💬 Chat</a>
+        <a href="ask-question.html" class="btn-ask">+ Ask Question</a>
+        <span class="nav-username">👤 <strong id="navUser"></strong></span>
+        <a href="#" onclick="logout()">Logout</a>
+    </div>
+</nav>
+
+<div class="container">
+
+    <div class="questions-header">
+        <div class="questions-title">
+            <h2>📋 My Questions</h2>
+            <span id="myQuestionCount" class="question-count-badge"></span>
+        </div>
+        <a href="ask-question.html" class="btn btn-primary"
+            style="width:auto; padding:8px 18px; font-size:14px; text-decoration:none;">
+            + Ask New Question
+        </a>
+    </div>
+
+    <!-- Status filter tabs -->
+    <div class="my-q-tabs">
+        <button class="my-q-tab active" onclick="filterByStatus('all', this)">All</button>
+        <button class="my-q-tab" onclick="filterByStatus('pending', this)">⏳ Pending</button>
+        <button class="my-q-tab" onclick="filterByStatus('approved', this)">✅ Approved</button>
+        <button class="my-q-tab" onclick="filterByStatus('rejected', this)">❌ Rejected</button>
+    </div>
+
+    <div id="myQuestionsList">
+        <div class="loading">Loading your questions...</div>
+    </div>
+
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    if (!localStorage.getItem('token')) {
+        window.location.href = 'login.html';
+    }
+    document.getElementById('navUser').textContent = localStorage.getItem('username');
+
+    let myQuestions = [];
+
+    async function loadMyQuestions() {
+        try {
+            myQuestions = await getMyQuestions();
+            document.getElementById('myQuestionCount').textContent =
+                `(${myQuestions.length})`;
+            renderQuestions(myQuestions);
+        } catch (err) {
+            document.getElementById('myQuestionsList').innerHTML =
+                '<div class="alert alert-error">Failed to load your questions.</div>';
+        }
+    }
+
+    function filterByStatus(status, btn) {
+        document.querySelectorAll('.my-q-tab')
+            .forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+
+        if (status === 'all') return renderQuestions(myQuestions);
+        if (status === 'pending')  return renderQuestions(myQuestions.filter(q => q.status === 'PENDING'));
+        if (status === 'approved') return renderQuestions(myQuestions.filter(q => q.isApproved));
+        if (status === 'rejected') return renderQuestions(myQuestions.filter(q => q.status === 'REJECTED'));
+    }
+
+    function renderQuestions(questions) {
+        const container = document.getElementById('myQuestionsList');
+
+        if (questions.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h3>No questions here</h3>
+                    <p>You haven't asked any questions yet.</p>
+                    <br>
+                    <a href="ask-question.html" class="btn btn-primary"
+                        style="width:auto; display:inline-block;">
+                        Ask Your First Question
+                    </a>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = questions.map(q => {
+            const isApproved = q.isApproved;
+            const isRejected = q.status === 'REJECTED';
+            const isPending  = !isApproved && !isRejected;
+
+            const approvalBadge = isApproved
+                ? `<span class="approval-badge approved">✅ Approved</span>`
+                : isRejected
+                ? `<span class="approval-badge rejected">❌ Rejected</span>`
+                : `<span class="approval-badge pending">⏳ Pending Approval</span>`;
+
+            const titleEl = isApproved
+                ? `<a href="question-detail.html?id=${q.questionId}">${q.title}</a>`
+                : `<span style="color:#2c3e50;">${q.title}</span>`;
+
+            return `
+                <div class="card question-card ${isPending ? 'card-pending' : isRejected ? 'card-rejected' : ''}">
+                    ${isPending ? `<div class="my-q-notice">👁️ Only visible to you until approved</div>` : ''}
+                    ${isRejected ? `<div class="my-q-notice my-q-notice-rejected">❌ This question was rejected by admin</div>` : ''}
+                    <div class="question-card-body">
+                        <h3>${titleEl}</h3>
+                        <p class="question-desc">${q.description.substring(0, 150)}...</p>
+                    </div>
+                    <div class="question-meta">
+                        <span class="topic-badge">${q.topic || 'General'}</span>
+                        <span class="status-badge status-${q.status.toLowerCase()}">${q.status}</span>
+                        ${approvalBadge}
+                        <span class="meta-date">🕐 ${formatDate(q.createdAt)}</span>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '';
+        return new Date(dateStr).toLocaleDateString('en-IN', {
+            day: 'numeric', month: 'short', year: 'numeric'
+        });
+    }
+
+    function logout() {
+        localStorage.clear();
+        window.location.href = 'login.html';
+    }
+
+    loadMyQuestions();
+</script>
+</body>
+</html>

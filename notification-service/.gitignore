@@ -1,0 +1,27 @@
+# Eclipse files
+.classpath
+.project
+.settings/
+.factorypath
+
+# Maven
+target/
+*.jar
+*.war
+*.class
+
+# Spring Boot
+application-local.properties
+
+# IDE
+*.iml
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

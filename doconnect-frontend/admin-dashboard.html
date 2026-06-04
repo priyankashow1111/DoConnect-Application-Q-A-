@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard - DoConnect</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <a href="#" class="logo">Do<span>Connect</span> <span style="font-size:13px; background:#e74c3c; color:white; padding:2px 8px; border-radius:10px; vertical-align:middle;">ADMIN</span></a>
+    <div class="nav-links">
+        <span class="admin-nav-user" id="adminName"></span>
+        <a href="#" onclick="adminLogout()" class="admin-logout-btn">⏻ Logout</a>
+    </div>
+</nav>
+
+<!-- Dashboard Header -->
+<div class="admin-hero">
+    <div class="admin-hero-inner">
+        <div>
+            <div class="admin-hero-title">📊 Admin Dashboard</div>
+            <div class="admin-hero-sub">Manage users, questions, and content moderation</div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- Tabs -->
+    <div class="admin-tabs">
+        <button class="tab-btn active" onclick="showTab('users', this)">
+            <span class="tab-icon">👥</span> Users
+        </button>
+        <button class="tab-btn" onclick="showTab('questions', this)">
+            <span class="tab-icon">❓</span> Questions
+        </button>
+        <button class="tab-btn" onclick="showTab('answers', this)">
+            <span class="tab-icon">💬</span> Answers
+        </button>
+        <button class="tab-btn tab-btn-pending" onclick="showTab('pending-q', this)">
+            <span class="tab-icon">⏳</span> Pending Questions
+        </button>
+        <button class="tab-btn tab-btn-pending" onclick="showTab('pending-a', this)">
+            <span class="tab-icon">⏳</span> Pending Answers
+        </button>
+    </div>
+
+    <!-- USERS TAB -->
+    <div class="tab-content active" id="tab-users">
+        <div class="admin-section-header">
+            <span>👥 All Users</span>
+        </div>
+        <div id="usersTable">
+            <div class="loading">Loading users...</div>
+        </div>
+    </div>
+
+    <!-- QUESTIONS TAB -->
+    <div class="tab-content" id="tab-questions">
+        <div class="admin-section-header">
+            <span>❓ All Questions</span>
+        </div>
+        <div id="questionsTable">
+            <div class="loading">Loading questions...</div>
+        </div>
+    </div>
+
+    <!-- ANSWERS TAB -->
+    <div class="tab-content" id="tab-answers">
+        <div class="admin-section-header">
+            <span>💬 All Answers</span>
+        </div>
+        <div id="answersTable">
+            <div class="loading">Loading answers...</div>
+        </div>
+    </div>
+
+    <!-- PENDING QUESTIONS TAB -->
+    <div class="tab-content" id="tab-pending-q">
+        <div class="admin-section-header pending">
+            <span>⏳ Pending Questions — Awaiting Review</span>
+        </div>
+        <div id="pendingQTable">
+            <div class="loading">Loading...</div>
+        </div>
+    </div>
+
+    <!-- PENDING ANSWERS TAB -->
+    <div class="tab-content" id="tab-pending-a">
+        <div class="admin-section-header pending">
+            <span>⏳ Pending Answers — Awaiting Review</span>
+        </div>
+        <div id="pendingATable">
+            <div class="loading">Loading...</div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="confirmOverlay">
+    <div class="modal-box">
+        <p id="confirmMessage"></p>
+        <div class="modal-actions">
+            <button class="btn btn-danger" id="confirmOkBtn">Confirm</button>
+            <button class="btn" style="background:#95a5a6; color:white;"
+                id="confirmCancelBtn">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/confirm-modal.js"></script>
+<script>
+    if (!localStorage.getItem('adminToken')) {
+        window.location.href = 'admin-login.html';
+    }
+
+    document.getElementById('adminName').textContent =
+        '👤 ' + localStorage.getItem('adminUsername');
+
+    // Show tab
+    function showTab(tabName, btn) {
+        document.querySelectorAll('.tab-content')
+            .forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-btn')
+            .forEach(b => b.classList.remove('active'));
+
+        document.getElementById(`tab-${tabName}`)
+            .classList.add('active');
+        (btn || event.target).closest('.tab-btn').classList.add('active');
+
+        // Load data for tab
+        if (tabName === 'users') loadUsers();
+        else if (tabName === 'questions') loadQuestions();
+        else if (tabName === 'answers') loadAllAnswers();
+        else if (tabName === 'pending-q') loadPendingQuestions();
+        else if (tabName === 'pending-a') loadPendingAnswers();
+    }
+
+    // Load Users
+    async function loadUsers() {
+        try {
+            const users = await adminGetAllUsers();
+            document.getElementById('usersTable').innerHTML = `
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Full Name</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${users.map(u => `
+                            <tr>
+                                <td>${u.userId}</td>
+                                <td><strong>${u.username}</strong></td>
+                                <td>${u.email}</td>
+                                <td>${u.fullName || '-'}</td>
+                                <td>
+                                    <span class="status-badge
+                                        ${u.isActive ? 'status-open' : 'status-resolved'}">
+                                        ${u.isActive ? 'Active' : 'Inactive'}
+                                    </span>
+                                </td>
+                                <td>
+                                    ${u.isActive ?
+                                        `<button class="btn btn-danger btn-sm"
+                                            onclick="deactivateUser(${u.userId})">
+                                            Deactivate
+                                        </button>` :
+                                        `<button class="btn btn-success btn-sm"
+                                            onclick="activateUser(${u.userId})">
+                                            Activate
+                                        </button>`
+                                    }
+                                </td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        } catch (err) {
+            document.getElementById('usersTable').innerHTML =
+                '<div class="alert alert-error">Failed to load users</div>';
+        }
+    }
+
+    // Load All Answers
+    async function loadAllAnswers() {
+        try {
+            const answers = await adminGetAllAnswers();
+            document.getElementById('answersTable').innerHTML = `
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Answer</th>
+                            <th>Answered By</th>
+                            <th>Question ID</th>
+                            <th>Approved</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${answers.map(a => `
+                            <tr>
+                                <td>${a.answerId}</td>
+                                <td style="max-width:250px;">
+                                    ${a.answerText.substring(0, 100)}...
+                                </td>
+                                <td>${a.answeredBy}</td>
+                                <td>${a.questionId}</td>
+                                <td>${a.isApproved ? '✅ Yes' : '⏳ No'}</td>
+                                <td style="display:flex; gap:5px;">
+                                    ${!a.isApproved ? `
+                                    <button class="btn btn-success btn-sm"
+                                        onclick="approveA(${a.answerId})">
+                                        ✅ Approve
+                                    </button>` : ''}
+                                    <button class="btn btn-danger btn-sm"
+                                        onclick="deleteA(${a.answerId})">
+                                        🗑️ Delete
+                                    </button>
+                                </td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        } catch (err) {
+            document.getElementById('answersTable').innerHTML =
+                '<div class="alert alert-error">Failed to load answers</div>';
+        }
+    }
+
+    // Load All Questions
+    async function loadQuestions() {
+        try {
+            const questions = await adminGetAllQuestions();
+            document.getElementById('questionsTable').innerHTML = `
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Asked By</th>
+                            <th>Topic</th>
+                            <th>Status</th>
+                            <th>Approved</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${questions.map(q => `
+                            <tr>
+                                <td>${q.questionId}</td>
+                                <td style="max-width:200px;">
+                                    ${q.title.substring(0, 60)}...
+                                </td>
+                                <td>${q.askedBy}</td>
+                                <td>
+                                    <span class="topic-badge">
+                                        ${q.topic || 'General'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-badge
+                                        status-${q.status.toLowerCase()}">
+                                        ${q.status}
+                                    </span>
+                                </td>
+                                <td>${q.isApproved ?
+                                    '✅ Yes' : '⏳ No'}</td>
+                                <td style="display:flex; gap:5px;">
+                                    ${q.status !== 'RESOLVED' ?
+                                        `<button class="btn btn-warning btn-sm"
+                                            onclick="closeQ(${q.questionId})">
+                                            🔒 Close & Resolve
+                                        </button>` : '<span style="color:#27ae60; font-weight:bold;">✅ Resolved</span>'}
+                                    <button class="btn btn-danger btn-sm"
+                                        onclick="deleteQ(${q.questionId})">
+                                        Delete
+                                    </button>
+                                </td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        } catch (err) {
+            document.getElementById('questionsTable').innerHTML =
+                '<div class="alert alert-error">Failed to load</div>';
+        }
+    }
+
+    // Load Pending Questions
+    async function loadPendingQuestions() {
+        try {
+            const questions = await adminGetUnapprovedQuestions();
+            const container = document.getElementById('pendingQTable');
+
+            if (questions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>✅ No pending questions!</h3>
+                        <p>All questions have been reviewed.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Description</th>
+                            <th>Asked By</th>
+                            <th>Topic</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${questions.map(q => `
+                            <tr>
+                                <td>${q.questionId}</td>
+                                <td style="max-width:180px;">
+                                    ${q.title.substring(0, 50)}
+                                </td>
+                                <td style="max-width:200px; color:#666;">
+                                    ${q.description.substring(0, 80)}...
+                                </td>
+                                <td>${q.askedBy}</td>
+                                <td>
+                                    <span class="topic-badge">
+                                        ${q.topic || 'General'}
+                                    </span>
+                                </td>
+                                <td style="display:flex; gap:5px;">
+                                    <button class="btn btn-success btn-sm"
+                                        onclick="approveQ(${q.questionId})">
+                                        ✅ Approve
+                                    </button>
+                                    <button class="btn btn-danger btn-sm"
+                                        onclick="rejectQ(${q.questionId})">
+                                        ❌ Reject
+                                    </button>
+                                </td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        } catch (err) {
+            document.getElementById('pendingQTable').innerHTML =
+                '<div class="alert alert-error">Failed to load</div>';
+        }
+    }
+
+    // Load Pending Answers
+    async function loadPendingAnswers() {
+        try {
+            const answers = await adminGetUnapprovedAnswers();
+            const container = document.getElementById('pendingATable');
+
+            if (answers.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>✅ No pending answers!</h3>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Answer</th>
+                            <th>Answered By</th>
+                            <th>Question ID</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${answers.map(a => `
+                            <tr>
+                                <td>${a.answerId}</td>
+                                <td style="max-width:250px;">
+                                    ${a.answerText.substring(0, 100)}...
+                                </td>
+                                <td>${a.answeredBy}</td>
+                                <td>${a.questionId}</td>
+                                <td style="display:flex; gap:5px;">
+                                    <button class="btn btn-success btn-sm"
+                                        onclick="approveA(${a.answerId})">
+                                        ✅ Approve
+                                    </button>
+                                    <button class="btn btn-danger btn-sm"
+                                        onclick="deleteA(${a.answerId})">
+                                        🗑️ Delete
+                                    </button>
+                                </td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        } catch (err) {
+            document.getElementById('pendingATable').innerHTML =
+                '<div class="alert alert-error">Failed to load</div>';
+        }
+    }
+
+    // Action Functions
+    async function approveQ(id) {
+        await adminApproveQuestion(id);
+        showToast('✅ Question approved!');
+        loadPendingQuestions();
+    }
+
+    async function rejectQ(id) {
+        await adminRejectQuestion(id);
+        showToast('❌ Question rejected');
+        loadPendingQuestions();
+    }
+
+    function deleteQ(id) {
+        showConfirm('Delete this question?', async () => {
+            await adminDeleteQuestion(id);
+            showToast('🗑️ Question deleted');
+            loadQuestions();
+        });
+    }
+
+    function closeQ(id) {
+        showConfirm('Close this question and mark it as RESOLVED?', async () => {
+            await adminCloseQuestion(id);
+            showToast('✅ Question closed and marked as Resolved');
+            loadQuestions();
+        });
+    }
+
+    async function approveA(id) {
+        await adminApproveAnswer(id);
+        showToast('✅ Answer approved!');
+        loadPendingAnswers();
+    }
+
+    function deleteA(id) {
+        showConfirm('Delete this answer?', async () => {
+            await fetch(
+                `${BASE_URL}/api/admin/answers/delete/${id}`,
+                { method: 'DELETE', headers: adminAuthHeaders() }
+            );
+            showToast('🗑️ Answer deleted');
+            loadPendingAnswers();
+        });
+    }
+
+    function deactivateUser(id) {
+        showConfirm('Deactivate this user?', async () => {
+            await adminDeactivateUser(id);
+            showToast('User deactivated');
+            loadUsers();
+        });
+    }
+
+    async function activateUser(id) {
+        await adminActivateUser(id);
+        showToast('User activated');
+        loadUsers();
+    }
+
+    function adminLogout() {
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminId');
+        localStorage.removeItem('adminUsername');
+        window.location.href = 'admin-login.html';
+    }
+
+    // Load users on start
+    loadUsers();
+</script>
+</body>
+</html>

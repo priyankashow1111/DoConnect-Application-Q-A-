@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ask Question - DoConnect</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <a href="index.html" class="logo">Do<span>Connect</span></a>
+    <div class="nav-links">
+        <a href="index.html">← Back to Questions</a>
+        <span class="nav-username">👤 <strong id="navUser"></strong></span>
+    </div>
+</nav>
+
+<div class="container" style="max-width:700px;">
+    <div class="card">
+        <h2 style="margin-bottom:20px; color:#2c3e50;">
+            ❓ Ask a Question
+        </h2>
+
+        <div id="alert"></div>
+
+        <div class="form-group">
+            <label>Question Title *</label>
+            <input type="text" id="title"
+                placeholder="What is your question? Be specific (min 10 chars)">
+        </div>
+        <div class="form-group">
+            <label>Description *</label>
+            <textarea id="description"
+                placeholder="Describe your question in detail. Include what you've tried and what you expected to happen."
+                style="min-height:160px;"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Topic / Tag</label>
+            <input type="text" id="topic"
+                placeholder="e.g. Spring Boot, Java, MySQL, React...">
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn btn-primary" onclick="submitQuestion()"
+                style="width:auto; flex:1;">
+                🚀 Submit Question
+            </button>
+            <a href="index.html" class="btn btn-warning"
+                style="text-decoration:none; text-align:center; flex:1;">
+                Cancel
+            </a>
+        </div>
+
+        <p style="font-size:13px; color:#999; margin-top:15px;">
+            ℹ️ Your question will be visible after admin approval
+        </p>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    if (!localStorage.getItem('token')) {
+        window.location.href = 'login.html';
+    }
+    document.getElementById('navUser').textContent = localStorage.getItem('username');
+
+    async function submitQuestion() {
+        const title = document.getElementById('title').value.trim();
+        const description =
+            document.getElementById('description').value.trim();
+        const topic = document.getElementById('topic').value.trim();
+
+        if (!title || title.length < 10) {
+            showAlert('Title must be at least 10 characters', 'error');
+            return;
+        }
+        if (!description) {
+            showAlert('Description is required', 'error');
+            return;
+        }
+
+        try {
+            const data = await askQuestion({ title, description, topic });
+
+            if (data.questionId) {
+                showAlert(
+                    '✅ Question submitted! Waiting for admin approval.',
+                    'success'
+                );
+                // disable form so user doesn't submit again
+                document.getElementById('title').disabled = true;
+                document.getElementById('description').disabled = true;
+                document.getElementById('topic').disabled = true;
+                document.querySelector('.btn-primary').disabled = true;
+            } else {
+                showAlert(data.error || 'Failed to submit question', 'error');
+            }
+        } catch (err) {
+            showAlert('Server error. Please try again.', 'error');
+        }
+    }
+
+    function showAlert(msg, type) {
+        document.getElementById('alert').innerHTML = type === 'success'
+            ? `<div class="submission-banner">
+                    <div class="submission-banner-icon">⏳</div>
+                    <div>
+                        <strong>Question Submitted — Pending Admin Approval</strong>
+                        <p>Your question has been received. It will appear publicly once an admin reviews and approves it.</p>
+                        <a href="index.html" class="btn btn-primary"
+                            style="display:inline-block; margin-top:12px; width:auto; padding:8px 20px; font-size:14px;">
+                            ← Go to Home
+                        </a>
+                    </div>
+               </div>`
+            : `<div class="alert alert-error">${msg}</div>`;
+        window.scrollTo(0, 0);
+    }
+</script>
+</body>
+</html>

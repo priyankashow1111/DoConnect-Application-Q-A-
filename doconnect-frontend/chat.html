@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat - DoConnect</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <a href="index.html" class="logo">Do<span>Connect</span></a>
+    <div class="nav-links">
+        <a href="index.html">← Home</a>
+        <span class="nav-username">👤 <strong id="navUser"></strong></span>
+    </div>
+</nav>
+
+<div class="chat-page-body">
+    <div class="chat-container">
+
+        <!-- Sidebar -->
+        <div class="user-list">
+            <div class="user-list-header">
+                <span>Chats</span>
+            </div>
+            <div class="user-list-search">
+                <input type="text" id="userSearch" placeholder="Search or start new chat"
+                    oninput="filterUsers()">
+            </div>
+            <div class="user-list-scroll" id="userList">
+                <div style="padding:20px; color:#8696a0; font-size:13px;">
+                    Loading users...
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="chat-area" id="chatArea">
+
+            <!-- Welcome screen -->
+            <div class="chat-welcome" id="chatWelcome">
+                <div class="chat-welcome-icon">💬</div>
+                <p>Select a contact to start chatting</p>
+            </div>
+
+            <!-- Active conversation -->
+            <div id="chatConversation" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
+                <div class="chat-header" id="chatHeader">
+                    <div class="chat-header-avatar" id="headerAvatar"></div>
+                    <div class="chat-header-info">
+                        <div class="chat-header-name" id="headerName"></div>
+                        <div class="chat-header-status" id="headerStatus">online</div>
+                    </div>
+                </div>
+
+                <div class="messages-area" id="messagesArea"></div>
+
+                <div class="chat-input-area">
+                    <input type="text" id="messageInput"
+                        placeholder="Type a message"
+                        onkeypress="if(event.key==='Enter') sendMsg()">
+                    <button class="send-btn" id="sendBtn" onclick="sendMsg()">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    if (!localStorage.getItem('token')) {
+        window.location.href = 'login.html';
+    }
+    document.getElementById('navUser').textContent = localStorage.getItem('username');
+
+    const currentUserId = parseInt(localStorage.getItem('userId'));
+    let allUsers = [];
+    let selectedUser = null;
+    let chatInterval = null;
+
+    async function loadUsers() {
+        try {
+            const users = await getAllUsers();
+            allUsers = users.filter(u => u.userId !== currentUserId && u.isActive);
+            renderUserList(allUsers);
+        } catch (err) {
+            console.error('Failed to load users');
+        }
+    }
+
+    function renderUserList(users) {
+        const container = document.getElementById('userList');
+        if (users.length === 0) {
+            container.innerHTML = '<p style="padding:15px; color:#8696a0; font-size:13px;">No users found</p>';
+            return;
+        }
+        container.innerHTML = users.map(u => {
+            const isActive = selectedUser && selectedUser.userId === u.userId;
+            return `
+            <div class="user-item${isActive ? ' active' : ''}" onclick="selectUser(${u.userId}, '${u.username}', '${u.fullName || ''}')"
+                id="user-${u.userId}">
+                <div class="user-avatar">${u.username.charAt(0).toUpperCase()}</div>
+                <div class="user-item-info">
+                    <div class="user-item-name">${u.username}</div>
+                    <div class="user-item-sub">${u.fullName || 'DoConnect user'}</div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function filterUsers() {
+        const q = document.getElementById('userSearch').value.toLowerCase();
+        renderUserList(allUsers.filter(u =>
+            u.username.toLowerCase().includes(q) ||
+            (u.fullName || '').toLowerCase().includes(q)
+        ));
+    }
+
+    async function selectUser(userId, username, fullName) {
+        selectedUser = { userId, username };
+
+        document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
+        const item = document.getElementById(`user-${userId}`);
+        if (item) item.classList.add('active');
+
+        document.getElementById('headerAvatar').textContent = username.charAt(0).toUpperCase();
+        document.getElementById('headerName').textContent = username;
+        document.getElementById('headerStatus').textContent = 'online';
+
+        document.getElementById('chatWelcome').style.display = 'none';
+        const conv = document.getElementById('chatConversation');
+        conv.style.display = 'flex';
+
+        await markConversationAsRead(userId);
+        loadConversation();
+
+        if (chatInterval) clearInterval(chatInterval);
+        chatInterval = setInterval(async () => {
+            await loadConversation();
+            await markConversationAsRead(selectedUser.userId);
+        }, 5000);
+    }
+
+    async function loadConversation() {
+        if (!selectedUser) return;
+        try {
+            const messages = await getConversation(currentUserId, selectedUser.userId);
+            renderMessages(messages);
+        } catch (err) {
+            console.error('Failed to load conversation');
+        }
+    }
+
+    function renderMessages(messages) {
+        const area = document.getElementById('messagesArea');
+        const wasAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 60;
+
+        if (messages.length === 0) {
+            area.innerHTML = `
+                <div class="chat-empty-msg">No messages yet — say hello! 👋</div>`;
+            return;
+        }
+
+        let lastDate = null;
+        area.innerHTML = messages.map(m => {
+            const isSent = m.senderId === currentUserId;
+            const msgDate = new Date(m.sentAt);
+            const dateLabel = msgDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+            const time = msgDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+            let dateDivider = '';
+            if (dateLabel !== lastDate) {
+                lastDate = dateLabel;
+                dateDivider = `<div class="date-divider"><span>${dateLabel}</span></div>`;
+            }
+
+            // Tick: double-tick blue = read, double-tick grey = delivered (sent but not read)
+            let tick = '';
+            if (isSent) {
+                tick = m.isRead
+                    ? `<span class="msg-tick read">✓✓</span>`
+                    : `<span class="msg-tick delivered">✓✓</span>`;
+            }
+
+            return `
+                ${dateDivider}
+                <div class="message-row ${isSent ? 'sent' : 'received'}">
+                    <div class="message ${isSent ? 'sent' : 'received'}">
+                        ${m.messageText}
+                        <div class="message-footer">
+                            <span class="message-time">${time}</span>
+                            ${tick}
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
+
+        if (wasAtBottom) area.scrollTop = area.scrollHeight;
+    }
+
+    async function sendMsg() {
+        const input = document.getElementById('messageInput');
+        const text = input.value.trim();
+        if (!text || !selectedUser) return;
+        input.value = '';
+        try {
+            await sendMessage({ receiverId: selectedUser.userId, messageText: text });
+            await loadConversation();
+        } catch (err) {
+            showToast('Failed to send message');
+        }
+    }
+
+    function showToast(msg) {
+        let t = document.querySelector('.toast');
+        if (!t) {
+            t = document.createElement('div');
+            t.className = 'toast';
+            document.body.appendChild(t);
+        }
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    loadUsers();
+</script>
+</body>
+</html>

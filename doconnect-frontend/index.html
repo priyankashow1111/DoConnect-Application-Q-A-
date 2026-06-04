@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DoConnect - Q&amp;A Platform</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+</head>
+<body>
+
+<nav class="navbar">
+    <a href="index.html" class="logo">Do<span>Connect</span></a>
+    <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="my-questions.html">📋 My Questions</a>
+        <a href="chat.html" id="chatNavLink">💬 Chat</a>
+        <a href="ask-question.html" class="btn-ask">+ Ask Question</a>
+        <span class="nav-username">👤 <strong id="navUser"></strong></span>
+        <a href="#" onclick="logout()" id="logoutBtn">Logout</a>
+    </div>
+</nav>
+
+<div class="hero-search">
+    <div class="hero-search-inner">
+        <h1 class="hero-title">Find Answers. Share Knowledge.</h1>
+        <p class="hero-subtitle">Search through community questions or ask your own</p>
+        <div class="search-bar hero-searchbar">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput"
+                placeholder="Search questions by keyword, topic..."
+                oninput="handleSearch()">
+        </div>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- Header -->
+    <div class="questions-header">
+        <div class="questions-title">
+            <h2>All Questions</h2>
+            <span id="questionCount" class="question-count-badge"></span>
+        </div>
+        <span class="welcome-text">
+            👋 Welcome back, <strong id="welcomeUser"></strong>
+        </span>
+    </div>
+
+    <!-- Questions List -->
+    <div id="questionsList">
+        <div class="loading">Loading questions...</div>
+    </div>
+
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    // Check login
+    if (!localStorage.getItem('token')) {
+        window.location.href = 'login.html';
+    }
+
+    document.getElementById('welcomeUser').textContent =
+        localStorage.getItem('username');
+    document.getElementById('navUser').textContent =
+        localStorage.getItem('username');
+
+    let allQuestions = [];
+
+    // Load questions on page load
+    async function loadQuestions() {
+        try {
+            allQuestions = await getAllQuestions();
+            renderQuestions(allQuestions);
+        } catch (err) {
+            document.getElementById('questionsList').innerHTML =
+                '<div class="empty-state"><h3>Failed to load questions</h3></div>';
+        }
+    }
+
+    // Render questions
+    function renderQuestions(questions) {
+        const container = document.getElementById('questionsList');
+        document.getElementById('questionCount').textContent =
+            `(${questions.length})`;
+
+        if (questions.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h3>No questions found</h3>
+                    <p>Be the first to ask a question!</p>
+                    <br>
+                    <a href="ask-question.html" class="btn btn-primary"
+                        style="width:auto; display:inline-block;">
+                        Ask Question
+                    </a>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = questions.map(q => `
+            <div class="card question-card">
+                <div class="question-card-body">
+                    <h3>
+                        <a href="question-detail.html?id=${q.questionId}">${q.title}</a>
+                    </h3>
+                    <p class="question-desc">${q.description.substring(0, 150)}...</p>
+                </div>
+                <div class="question-meta">
+                    <span class="meta-author">👤 ${q.askedBy}</span>
+                    <span class="topic-badge">${q.topic || 'General'}</span>
+                    <span class="status-badge status-${q.status.toLowerCase()}">${q.status}</span>
+                    <span class="meta-date">🕐 ${formatDate(q.createdAt)}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Search handler
+    let searchTimer;
+    async function handleSearch() {
+        clearTimeout(searchTimer);
+        const keyword = document.getElementById('searchInput').value.trim();
+
+        if (keyword === '') {
+            renderQuestions(allQuestions);
+            return;
+        }
+
+        searchTimer = setTimeout(async () => {
+            try {
+                const results = await searchQuestions(keyword);
+                renderQuestions(results);
+            } catch (err) {
+                console.error('Search failed');
+            }
+        }, 400);
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '';
+        return new Date(dateStr).toLocaleDateString('en-IN', {
+            day: 'numeric', month: 'short', year: 'numeric'
+        });
+    }
+
+    function logout() {
+        localStorage.clear();
+        window.location.href = 'login.html';
+    }
+
+    loadQuestions();
+</script>
+</body>
+</html>

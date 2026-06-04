@@ -1,0 +1,48 @@
+# =============================================================
+# Rolling Update Strategy
+# Kubernetes replaces pods gradually — zero downtime.
+# maxSurge: extra pods allowed during update
+# maxUnavailable: pods that can be down during update
+# =============================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metroride-api-rolling
+  namespace: default
+  labels:
+    app: metroride-api
+    strategy: rolling
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: metroride-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1          # allow 1 extra pod during update (4 total briefly)
+      maxUnavailable: 0    # never take a pod down before new one is ready
+  template:
+    metadata:
+      labels:
+        app: metroride-api
+    spec:
+      containers:
+        - name: metroride-api
+          image: myregistry/metroride-api:1.1.0   # <-- new version triggers rolling update
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /api/metro/health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10

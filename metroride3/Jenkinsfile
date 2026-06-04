@@ -1,0 +1,84 @@
+pipeline {
+    agent any
+
+    environment {
+        APP_NAME    = 'metroride-api'
+        VERSION     = '1.0.0'
+        IMAGE_NAME  = "myregistry/${APP_NAME}:${VERSION}"
+        REGISTRY    = 'myregistry'   // replace with real registry
+    }
+
+    tools {
+        maven 'Maven-3.8'
+        jdk   'JDK-21'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo '==> Checking out source code...'
+                checkout scm
+            }
+        }
+
+        stage('Maven Build') {
+            steps {
+                echo '==> Building with Maven...'
+                sh 'mvn clean package -DskipTests'
+            }
+            post {
+                success {
+                    echo 'Maven build successful.'
+                }
+                failure {
+                    echo 'Maven build FAILED.'
+                }
+            }
+        }
+
+        stage('Archive JAR') {
+            steps {
+                echo '==> Archiving JAR artifact...'
+                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+            }
+        }
+
+        stage('Docker Login') {
+            steps {
+                echo '==> Logging into Docker registry...'
+                // In real setup, use Jenkins credentials:
+                // withCredentials([usernamePassword(credentialsId: 'docker-creds', ...)]) { ... }
+                sh 'echo "Mock: docker login ${REGISTRY}"'
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                echo "==> Building Docker image: ${IMAGE_NAME}"
+                sh "docker build -t ${IMAGE_NAME} ."
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                echo "==> Pushing image to registry: ${IMAGE_NAME}"
+                // sh "docker push ${IMAGE_NAME}"
+                sh "echo 'Mock: docker push ${IMAGE_NAME}'"
+            }
+        }
+
+    }
+
+    post {
+        always {
+            echo "Pipeline finished. Status: ${currentBuild.currentResult}"
+        }
+        success {
+            echo 'All stages passed successfully.'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs above.'
+        }
+    }
+}
